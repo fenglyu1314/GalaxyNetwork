@@ -173,6 +173,35 @@ html, body {
   color: #b8c5ff;
 }
 
+/* 文档型章节（如第 8 节）使用的对照表 */
+.section .intro table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 18px;
+  font-size: 13.5px;
+}
+.section .intro th,
+.section .intro td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+.section .intro th {
+  background: var(--bg-elev);
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.section .intro td code { font-size: 12px; padding: 1px 5px; }
+
+/* intro 内嵌的整段源码（.ush 全文）：限高 + 自身滚动 */
+.section .intro .code-block {
+  margin: 14px 0 22px;
+  max-height: 640px;
+}
+
 /* ========== 章节内嵌的教学图示（SVG） ========== */
 .section .intro .diagram {
   margin: 18px 0;

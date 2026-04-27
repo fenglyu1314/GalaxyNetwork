@@ -7,6 +7,7 @@ import { section04 } from './sections/04-motion';
 import { section05 } from './sections/05-network';
 import { section06 } from './sections/06-probability';
 import { section07 } from './sections/07-twinkle-fade';
+import { section08 } from './sections/08-ue-custom-node';
 
 // 所有章节注册到这里，按顺序渲染
 const SECTIONS: SectionConfig[] = [
@@ -17,6 +18,7 @@ const SECTIONS: SectionConfig[] = [
   section05,
   section06,
   section07,
+  section08,
 ];
 
 function buildToc(parent: HTMLElement): void {

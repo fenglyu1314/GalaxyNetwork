@@ -5,8 +5,9 @@ import { createRenderer, type UniformDescriptor } from './renderer';
 import { highlightGLSL } from './highlight';
 
 export type ControlSpec =
-  | { kind: 'range'; uniform: string; label: string; min: number; max: number; step?: number }
-  | { kind: 'color'; uniform: string; label: string };
+  | { kind: 'range';  uniform: string; label: string; min: number; max: number; step?: number }
+  | { kind: 'color';  uniform: string; label: string }
+  | { kind: 'toggle'; uniform: string; label: string };  // 操作 float uniform：true → 1.0 / false → 0.0
 
 // 子小节：每个子节有独立的标题、说明、shader、控件
 export interface SubsectionConfig {
@@ -96,6 +97,15 @@ function mountDemo(
         .name(ctrl.label)
         .onChange((v: string) => {
           u.value = hexToRgb(v);
+        });
+    } else if (ctrl.kind === 'toggle') {
+      // 用代理对象给 lil-gui 操作布尔，写回 float uniform（0/1）
+      const proxy = { on: (u.value as number) > 0.5 };
+      gui
+        .add(proxy, 'on')
+        .name(ctrl.label)
+        .onChange((v: boolean) => {
+          u.value = v ? 1.0 : 0.0;
         });
     }
   }

@@ -45,5 +45,14 @@ void main() {
   halo *= smoothstep(0.25, 0.0, d2);
 
   fragColor = vec4(uBaseColor * (disk + halo * uGlowStrength), 1.0);
+
+  // 网格线叠加：用于观察星点是否被裁到格子边界外
+  if (uShowGrid > 0.5) {
+    vec2 f = fract(grid);
+    vec2 dg = min(f, 1.0 - f);
+    float gridDist = min(dg.x, dg.y);
+    float gridLine = smoothstep(0.025, 0.0, gridDist);
+    fragColor.rgb = mix(fragColor.rgb, vec3(0.35, 0.4, 0.55), gridLine * 0.55);
+  }
 }
 `;

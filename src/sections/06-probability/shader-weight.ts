@@ -109,7 +109,9 @@ void main() {
       float segLen2 = dot(seg, seg);
 
       float bw = (bMe + bNb - 1.0) * uBrightnessWeight;
-      float dw = smoothstep(2.0, 0.0, segLen2) * uDistanceWeight;
+      // smoothstep 范围按当前默认 Jitter/OrbitRadius 下 segLen² 的实际分布裁剪，
+      // 否则在 [2, 0] 这样的宽范围里，segLen² ≈ 1 附近的变化几乎看不到差异
+      float dw = smoothstep(1.6, 0.4, segLen2) * uDistanceWeight;
       float threshold = clamp(uLineDensity + bw + dw, 0.05, 0.95);
 
       if (edgeHash(cellId, nbCell) > threshold) continue;

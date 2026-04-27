@@ -148,10 +148,18 @@ bool starExists(vec2 nbId) {
         </p>
         <pre><code>threshold = clamp(
   uLineDensity
-  + (bA + bB - 1.0) · uBrightnessWeight   // 亮度偏移：[-1, +1] · w
-  + smoothstep(2, 0, segLen²) · uDistanceWeight,  // 距离权重：近 → 大
+  + (bA + bB - 1.0) · uBrightnessWeight       // 亮度偏移：[-1, +1] · w
+  + smoothstep(1.6, 0.4, segLen²) · uDistanceWeight,  // 距离权重：近 → 大
   0.05, 0.95
 );</code></pre>
+        <p>
+          <strong>距离权重的 smoothstep 范围</strong>需要按实际端点抖动幅度调整：
+          相邻两星的 <code>segLen²</code> 在默认 <code>Jitter = 0.4 / OrbitRadius = 0.06</code>
+          下集中在 <strong>[0.7, 1.4]</strong>，所以 <code>smoothstep(1.6, 0.4)</code> 刚好
+          覆盖这个分布——把"很近 vs 很远"映射到 [1, 0] 全程。
+          如果像原 <code>.ush</code> 那样写成 <code>smoothstep(2, 0)</code>，
+          实际差异会被压缩到只剩 ±0.18 左右，肉眼几乎看不出。
+        </p>
         <p>
           这里的亮度 <code>bA / bB</code> 就是 6.1 引入的 <code>starBrightness()</code>
           ——同一组 hash 既决定"剔除与否"也决定"易连与否"，自然对齐。

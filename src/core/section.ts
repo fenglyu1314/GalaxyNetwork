@@ -9,14 +9,15 @@ export type ControlSpec =
   | { kind: 'color';  uniform: string; label: string }
   | { kind: 'toggle'; uniform: string; label: string };  // 操作 float uniform：true → 1.0 / false → 0.0
 
-// 子小节：每个子节有独立的标题、说明、shader、控件
+// 子小节：每个子节有独立的标题、说明，可选挂载 demo（shader + 控件）
 export interface SubsectionConfig {
   id: string;             // 用于 TOC 锚点
   title: string;
   intro?: string;         // 可选：子小节自己的说明
-  shaderSource: string;
-  uniforms: Record<string, UniformDescriptor>;
-  controls: ControlSpec[];
+  // demo 三件套：要么全填、要么全省（纯文档子节）
+  shaderSource?: string;
+  uniforms?: Record<string, UniformDescriptor>;
+  controls?: ControlSpec[];
 }
 
 export interface SectionConfig {
@@ -165,7 +166,9 @@ export function mountSection(config: SectionConfig, parent: HTMLElement): void {
         subEl.appendChild(subIntro);
       }
 
-      mountDemo(subEl, sub.shaderSource, sub.uniforms, sub.controls);
+      if (sub.shaderSource && sub.uniforms && sub.controls) {
+        mountDemo(subEl, sub.shaderSource, sub.uniforms, sub.controls);
+      }
       section.appendChild(subEl);
     }
   }

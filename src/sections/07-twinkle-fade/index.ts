@@ -20,8 +20,7 @@ export const section07: SectionConfig = {
       <strong>7.1</strong> 给静态亮度 <code>b</code> 叠一层时间脉冲，每颗星独立频率 / 相位；
       <strong>7.2</strong> 用 <code>segLen²</code> 算一个权重，<strong>同时</strong>缩"线宽"和"亮度"，
       远端连线"既细又透"地隐去；
-      <strong>7.3</strong> 二者合成 —— 算法部分到此与 <code>GalaxyNetwork.ush</code> 完全对齐，
-      下节做 UE Custom Node 的收尾对照。
+      <strong>7.3</strong> 二者合成，得到本系列的最终效果，下一节会给出对应的 UE Custom Node 实现。
     </p>
   `,
   children: [
@@ -125,11 +124,11 @@ lines += smoothstep(w2eff, 0.0, distToSeg2(grid, me, nb))
           形状自然得多。
         </p>
         <p>
-          默认 <code>Near = 0.16 / Far = 1.44</code>，对应 <code>GalaxyNetwork.ush</code> 中
-          <code>LINE_ABS</code> 末尾硬编码的 <code>smoothstep(1.44, 0.16, _len2)</code>
-          —— 这里把它暴露成参数方便对比。注意一处<strong>相对 .ush 的视觉增强</strong>：
-          .ush 只用这两个值衰减亮度，不动 <code>lineOuter / lineInner</code>；
-          这里把 <code>w2</code> 也按同一个权重缩，远端线"尖"的形态更接近真实星图。
+          默认 <code>Near = 0.16 / Far = 1.44</code> 对应 <code>segLen ∈ [0.4, 1.2]</code> 的过渡带 ——
+          网格化后单元尺寸为 1，所以这个范围正好覆盖"邻格 → 跨两格"的距离。
+          注意这里的"距离过渡"和 6.3 的"距离权重"不是一回事：
+          6.3 改的是<strong>连线是否出现的概率</strong>，而这里改的是<strong>已经出现的连线的"宽度 + 亮度"</strong>，
+          作用在两个不同环节，叠加起来才能让远端的连线既稀疏又柔。
         </p>
         <p>
           调小 <code>LineFadeFar</code>（比如 0.8）→ 远的线整批消失、画面更稀疏；
@@ -181,21 +180,19 @@ lines += smoothstep(w2eff, 0.0, distToSeg2(grid, me, nb))
       intro: `
         <p>
           把 7.1 闪烁和 7.2 距离过渡同时打开，再选一组"最像星空"的预设：
-          稀疏星 + 暗淡基底 + 强亮峰闪烁。算法部分到此与
-          <code>GalaxyNetwork.ush</code> 完全对齐：
+          稀疏星 + 暗淡基底 + 强亮峰闪烁。至此本系列的算法已经完整：
         </p>
         <ul>
-          <li>整数 hash（pcg2d ↔ <code>INT_HASH</code> 位运算）</li>
-          <li>圆周运动 + 独立相位 / 速度</li>
-          <li>亮度剔除 + 边 hash + 亮度·距离权重的概率筛</li>
-          <li>时间脉冲闪烁（<code>pulse²</code> 呼吸）</li>
+          <li>整数 hash 生成<strong>稳定</strong>的随机量（pcg2d）</li>
+          <li>每格一颗星 + 圆周运动 + 独立相位 / 速度</li>
+          <li>亮度剔除 + 边 hash + 亮度·距离<strong>双向</strong>权重的概率筛</li>
+          <li>时间脉冲闪烁（<code>pulse²</code> 呼吸，亮度与半径同步）</li>
           <li>连线远端的距离过渡（线宽 + 亮度同步收窄）</li>
         </ul>
         <p>
-          下一节做 <strong>UE Custom Node</strong> 收尾：
-          把整张 <code>.ush</code> 完整呈现，标注每段对应到本系列哪一节，
-          并梳理 HLSL ↔ GLSL 的几处语法差异（<code>asuint</code> ↔ <code>floatBitsToUint</code>、
-          <code>sincos</code> ↔ 分别 <code>sin/cos</code>、宏 ↔ 函数等）。
+          下一节用<strong>一个 UE Custom Node</strong> 把整套算法搬进虚幻 ——
+          把这一节的 GLSL 翻译成 HLSL、贴进 Custom Node 的 Code 字段、
+          按表配置输入引脚，就能在材质里直接得到同样的效果。
         </p>
       `,
       shaderSource: SHADER_FINAL,

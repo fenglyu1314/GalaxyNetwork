@@ -4,7 +4,7 @@
 //   b = starBrightness(nbId)  ∈ [0, 1]   独立第 3 组 hash（偏移 (51, 89)）
 //   b < uMinBrightness  → 剔除（视为不存在）
 //   否则 disk + halo 按 b 加权 → 亮星更亮、暗星更暗；
-//   同时 r = uStarSize · mix(0.45, 1.0, b) → 暗星半径也更小（相对 .ush 的视觉增强）
+//   同时 r = uStarSize · mix(0.45, 1.0, b) → 暗星半径也更小，亮度·体积绑定
 //
 // uMinBrightness = 0.0 → 全部保留（等效第 5 节）
 // uMinBrightness = 0.3 → 约 70% 保留（默认）

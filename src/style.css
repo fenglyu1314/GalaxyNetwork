@@ -196,7 +196,7 @@ html, body {
 }
 .section .intro td code { font-size: 12px; padding: 1px 5px; }
 
-/* intro 内嵌的整段源码（.ush 全文）：限高 + 自身滚动 */
+/* intro 内嵌的整段源码：限高 + 自身滚动 */
 .section .intro .code-block {
   margin: 14px 0 22px;
   max-height: 640px;

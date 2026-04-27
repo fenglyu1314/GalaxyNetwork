@@ -12,7 +12,7 @@ const TYPES = new Set([
   'float', 'int', 'uint', 'bool',
   'vec2', 'vec3', 'vec4', 'ivec2', 'ivec3', 'ivec4', 'uvec2', 'uvec3', 'uvec4', 'bvec2', 'bvec3', 'bvec4',
   'mat2', 'mat3', 'mat4', 'sampler2D', 'samplerCube',
-  // HLSL 向量类型（供第 8 节复用本高亮器渲染 .ush）
+  // HLSL 向量类型（供第 8 节复用本高亮器渲染 HLSL 代码）
   'float2', 'float3', 'float4', 'int2', 'int3', 'int4', 'uint2', 'uint3', 'uint4', 'bool2', 'bool3', 'bool4',
   'half', 'half2', 'half3', 'half4',
 ]);

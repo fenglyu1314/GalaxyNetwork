@@ -14,7 +14,7 @@
 // 谷底时星点同时变暗 + 缩小，亮度·体积双重收缩，呼吸感更强。
 //
 // 频率 hash 复用 starBrightness 的同一组 hash（取 .y 分量），
-// 不再调一次 pcg2d，与 .ush 中"复用已有 hash"的思路一致。
+// 不再调一次 pcg2d —— 一颗星只用一组随机数，省一次哈希。
 
 export const FRAGMENT_SHADER = /* glsl */ `
 uvec2 pcg2d(uvec2 v) {

@@ -47,10 +47,10 @@ bool starExists(vec2 nbId) {
           连线的两个端点也用同样的判定：端点缺失则该边直接跳过。
         </p>
         <p>
-          网页版还做了一处相对 <code>.ush</code> 的视觉增强：让<strong>半径也按 <code>b</code> 同步缩放</strong>，
+          为了让"亮 / 暗"差异更直观，这里再把<strong>半径也按 <code>b</code> 同步缩放</strong>：
           <code>r = uStarSize · mix(0.45, 1.0, b)</code> —— 暗星不仅淡，体积也只有亮星的 ~45%。
-          原 <code>.ush</code> 中 <code>starSq = StarSize²</code> 是全局常量，所有星等大，
-          只靠亮度差区分；网页这里把"亮度"和"体积"绑在一起，画面的强弱对比更接近真实星图。
+          亮度和体积绑在一起，画面的强弱对比比"只调亮度"接近真实星图得多；
+          这条规则会一路延续到第 7 节，闪烁时半径也会跟着 <code>b</code> 一起呼吸。
         </p>
         <p>
           把 <strong>MinBrightness</strong> 从 0 → 0.3 → 0.6 滑动：阵列从全员均匀，到出现

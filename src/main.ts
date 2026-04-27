@@ -4,6 +4,7 @@ import { section01 } from './sections/01-uv-point';
 import { section02 } from './sections/02-grid';
 import { section03 } from './sections/03-line';
 import { section04 } from './sections/04-motion';
+import { section05 } from './sections/05-network';
 
 // 所有章节注册到这里，按顺序渲染
 const SECTIONS: SectionConfig[] = [
@@ -11,6 +12,7 @@ const SECTIONS: SectionConfig[] = [
   section02,
   section03,
   section04,
+  section05,
 ];
 
 function buildToc(parent: HTMLElement): void {

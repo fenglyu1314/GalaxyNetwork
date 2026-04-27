@@ -1,19 +1,33 @@
-// 第 8 节使用的 HLSL Custom Node 代码
+﻿// 第 8 节使用的 HLSL Custom Node 代码
 //
-// 算法 1:1 对应 7.3 final 的 GLSL 实现。Custom Node 的 Code 字段会被
-// UE 自动包成一个 MaterialFloat3 函数，因此：
+// 算法 1:1 对应 7.3 final 的 GLSL 实现，但只暴露 8 个常用引脚；
+// 其余 11 个"调试 / 测试用"参数固化为内部 const 常量（默认值取 7.3 节的预设）。
+// 如果以后想在材质里再调出来，把对应的 const 行替换成同名 Input 即可。
+//
+// Custom Node 的 Code 字段会被 UE 自动包成一个 MaterialFloat3 函数，因此：
 //   · 不能在 Body 里直接声明嵌套函数；
-//   · 但可以用 #define 宏把"小函数"展开成局部变量赋值（与原始项目宏写法一致）。
-// 所有宏命名遵循"全大写 + 输出参数末位"的约定，避免与材质引脚撞名。
+//   · 但可以用 #define 宏把"小函数"展开成局部变量赋值。
 
 export const HLSL_CUSTOM_NODE = `// ===== Galaxy Network Custom Node (HLSL) =====
-// Inputs (顺序需与 Custom Node 引脚一致):
+// Inputs (共 8 个，顺序需与 Custom Node 引脚一致):
 //   UV(float2), Time(float), BaseColor(float3),
-//   Scale, StarSize, Jitter, OrbitRadius, OrbitSpeed,
-//   LineWidth, LineBrightness, GlowStrength,
-//   MinBrightness, LineDensity, BrightnessWeight, DistanceWeight,
-//   TwinkleSpeed, TwinkleAmount, LineFadeNear, LineFadeFar
+//   Scale(float), Brightness(float),
+//   StarSize(float), LineWidth(float), LineDensity(float)
 // Output Type: CMOT Float 3 (RGB)，建议接到 Emissive Color。
+
+// ----- 内部固定参数（如需暴露，把对应 const 行换成同名 Input 即可） -----
+const float GN_JITTER            = 0.5;     // 星点在格内的位置扰动
+const float GN_ORBIT_RADIUS      = 0.05;    // 圆周运动半径
+const float GN_ORBIT_SPEED       = 0.8;     // 圆周运动速度倍率
+const float GN_GLOW_STRENGTH     = 1.2;     // 星点光晕强度
+const float GN_LINE_BRIGHTNESS   = 0.7;     // 连线亮度倍率
+const float GN_MIN_BRIGHTNESS    = 0.4;     // 亮度阈值，低于此值的星不显示
+const float GN_BRIGHTNESS_WEIGHT = 0.4;     // 概率筛中"亮度"权重
+const float GN_DISTANCE_WEIGHT   = 0.5;     // 概率筛中"距离"权重（双向）
+const float GN_TWINKLE_SPEED     = 1.5;     // 闪烁速度
+const float GN_TWINKLE_AMOUNT    = 0.75;    // 闪烁深度
+const float GN_LINE_FADE_NEAR    = 0.16;    // 距离过渡近端阈值（segLen²）
+const float GN_LINE_FADE_FAR     = 1.44;    // 距离过渡远端阈值（segLen²）
 
 #define GN_TAU 6.2831853
 
@@ -43,23 +57,23 @@ export const HLSL_CUSTOM_NODE = `// ===== Galaxy Network Custom Node (HLSL) ====
 // 星点时变亮度 b_dyn (复用 brightness 那组 hash 的 .y 作为频率/相位种子)
 #define GN_STAR_TWINKLE(_NB_ID, _OUT_B) { \\
     float2 _h; GN_HASH22(_NB_ID + float2(51.0, 89.0), _h); \\
-    float _freq  = lerp(1.0, 3.0, _h.y) * TwinkleSpeed; \\
+    float _freq  = lerp(1.0, 3.0, _h.y) * GN_TWINKLE_SPEED; \\
     float _phase = _h.y * GN_TAU; \\
     float _pulse = sin(Time * _freq + _phase) * 0.5 + 0.5; \\
     _pulse *= _pulse; \\
-    _OUT_B = _h.x * lerp(1.0 - TwinkleAmount, 1.0, _pulse); \\
+    _OUT_B = _h.x * lerp(1.0 - GN_TWINKLE_AMOUNT, 1.0, _pulse); \\
 }
 
 // 星点中心位置 (Jitter + 圆周运动)
 #define GN_STAR_OF(_NB_ID, _OUT_POS) { \\
     float2 _j;  GN_HASH22(_NB_ID, _j); \\
     float2 _h2; GN_HASH22(_NB_ID + float2(127.0, 311.0), _h2); \\
-    float2 _center = _NB_ID + 0.5 + (_j - 0.5) * Jitter; \\
+    float2 _center = _NB_ID + 0.5 + (_j - 0.5) * GN_JITTER; \\
     float _phase = _h2.x * GN_TAU; \\
     float _speed = lerp(0.5, 1.5, _h2.y); \\
-    float _t = Time * OrbitSpeed * _speed + _phase; \\
+    float _t = Time * GN_ORBIT_SPEED * _speed + _phase; \\
     float _s, _c; sincos(_t, _s, _c); \\
-    _OUT_POS = _center + OrbitRadius * float2(_c, _s); \\
+    _OUT_POS = _center + GN_ORBIT_RADIUS * float2(_c, _s); \\
 }
 
 // 边 hash (与方向无关：取 min/abs 让 (A,B) 与 (B,A) 一致)
@@ -90,7 +104,7 @@ float halo = 0.0;
 [unroll] for (int ox = -1; ox <= 1; ox++) {
     float2 nbId = cellId + float2(ox, oy);
     float bs;   GN_STAR_BRIGHTNESS(nbId, bs);
-    if (bs < MinBrightness) continue;
+    if (bs < GN_MIN_BRIGHTNESS) continue;
     float bDyn; GN_STAR_TWINKLE(nbId, bDyn);
     float2 sp;  GN_STAR_OF(nbId, sp);
     float b  = lerp(0.4, 1.4, bDyn);
@@ -107,7 +121,7 @@ float halo = 0.0;
 // 十字方向连线：概率筛 + 距离过渡
 float lines = 0.0;
 float bsMe; GN_STAR_BRIGHTNESS(cellId, bsMe);
-if (bsMe >= MinBrightness) {
+if (bsMe >= GN_MIN_BRIGHTNESS) {
     float2 me;  GN_STAR_OF(cellId, me);
     float  bMe; GN_STAR_TWINKLE(cellId, bMe);
     float  w2   = LineWidth * LineWidth;
@@ -115,17 +129,17 @@ if (bsMe >= MinBrightness) {
     [unroll] for (int i = 0; i < 4; i++) {
         float2 nbCell = cellId + dirs[i];
         float bsNb; GN_STAR_BRIGHTNESS(nbCell, bsNb);
-        if (bsNb < MinBrightness) continue;
+        if (bsNb < GN_MIN_BRIGHTNESS) continue;
         float2 nb;  GN_STAR_OF(nbCell, nb);
         float  bNb; GN_STAR_TWINKLE(nbCell, bNb);
         float2 seg = nb - me;
         float segLen2 = dot(seg, seg);
-        float bw = (bMe + bNb - 1.0) * BrightnessWeight;
-        float dw = (smoothstep(1.6, 0.4, segLen2) * 2.0 - 1.0) * DistanceWeight;
+        float bw = (bMe + bNb - 1.0) * GN_BRIGHTNESS_WEIGHT;
+        float dw = (smoothstep(1.6, 0.4, segLen2) * 2.0 - 1.0) * GN_DISTANCE_WEIGHT;
         float threshold = saturate(LineDensity + bw + dw);
         float eh; GN_EDGE_HASH(cellId, nbCell, eh);
         if (eh > threshold) continue;
-        float distFade = smoothstep(LineFadeFar, LineFadeNear, segLen2);
+        float distFade = smoothstep(GN_LINE_FADE_FAR, GN_LINE_FADE_NEAR, segLen2);
         if (distFade <= 0.0) continue;
         float w2eff = w2 * distFade;
         float dseg; GN_DIST_TO_SEG2(grid, me, nb, dseg);
@@ -133,5 +147,5 @@ if (bsMe >= MinBrightness) {
     }
 }
 
-return BaseColor * (disk + halo * GlowStrength + lines * LineBrightness);
+return BaseColor * Brightness * (disk + halo * GN_GLOW_STRENGTH + lines * GN_LINE_BRIGHTNESS);
 `;

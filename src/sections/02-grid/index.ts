@@ -44,9 +44,9 @@ export const section02: SectionConfig = {
     uBaseColor:     { type: 'vec3',  value: [0.6, 0.8, 1.0] },
   },
   controls: [
-    { kind: 'range', uniform: 'uScale',        label: 'Scale',        min: 1,    max: 10,  step: 1     },
-    { kind: 'range', uniform: 'uStarSize',     label: 'StarSize',     min: 0.01, max: 0.5, step: 0.001 },
-    { kind: 'range', uniform: 'uGlowStrength', label: 'GlowStrength', min: 0.0,  max: 5.0, step: 0.05  },
-    { kind: 'color', uniform: 'uBaseColor',    label: 'BaseColor' },
+    { kind: 'range', uniform: 'uScale',        label: 'Scale（网格密度）',        min: 1,    max: 10,  step: 1     },
+    { kind: 'range', uniform: 'uStarSize',     label: 'StarSize（星点大小）',     min: 0.01, max: 0.5, step: 0.001 },
+    { kind: 'range', uniform: 'uGlowStrength', label: 'GlowStrength（光晕强度）', min: 0.0,  max: 5.0, step: 0.05  },
+    { kind: 'color', uniform: 'uBaseColor',    label: 'BaseColor（基础颜色）' },
   ],
 };

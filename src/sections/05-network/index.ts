@@ -32,17 +32,28 @@ export const section05: SectionConfig = {
       <code>starOf(...)</code>，再调 4 次 <code>distToSeg2</code>。
     </p>
     <p>
-      <strong>关于 4 方向的简化</strong>：第 3 节"4 方向就够"成立的前提是星点居中，
-      端点扰动后严格来说会漏掉一些斜向命中（比如左上邻居的星跑到它格子右下角时，
-      它和当前星的连线斜穿过 P，但 P 的 4 条候选里没这一条）。
-      只要 <strong>Jitter</strong> ≤ 0.5、<strong>OrbitRadius</strong> ≤ 0.1，
-      端点偏离不大，肉眼几乎察觉不到；下一节会用「亮度·距离·密度」概率筛
-      进一步抑制残留瑕疵。
+      <strong>关于 4 方向的成立前提</strong>：第 3 节里"4 方向就够"依赖
+      <em>星点居中</em>这条对称性。端点扰动后，这条对称性松动为一个
+      参数约束 —— <strong>每颗星不越过自己格子的边界</strong>，对应
+      <code>Jitter + 2·OrbitRadius ≤ 1</code>
+      （单分量最大偏离 = <code>Jitter/2 + OrbitRadius</code>，要 ≤ 半格 0.5）。
+      只要参数留有余量，画面始终完整。
+    </p>
+    <p>
+      把控件拉满（<code>Jitter = 1</code> 且 <code>OrbitRadius = 0.3</code>）
+      就能复现破坏约束后的瑕疵：星甩出格子时，它发出去的某些线段会
+      斜穿过<strong>第三个</strong>格子的像素，而那个像素的 4 条候选里没有
+      这条线段，于是中段出现"看不见的断点"。这是算法的边界条件，不是 bug。
     </p>
     <p>
       把 <strong>LineBrightness</strong> 从 0 拉起来，从动态星点阵列过渡到完整的星座网络；
       调 <strong>OrbitRadius</strong> 看连线端点跟着星点漂移摇摆；
       <strong>ShowGrid</strong> 打开能直接看到连线已经完全脱离规整方格。
+    </p>
+    <p>
+      下一节给星座引入<strong>稀疏感</strong>：不再让所有相邻星都连，
+      而是按<strong>亮度 / 距离 / 密度</strong>做概率筛 ——
+      画面会从规则鱼网变成有机的星座。
     </p>
   `,
   shaderSource: SHADER_NETWORK,

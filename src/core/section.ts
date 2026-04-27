@@ -79,6 +79,21 @@ function mountDemo(
   // 启动渲染（必须在 canvas 进入 DOM 后）
   const handle = createRenderer(canvas, shaderSource, uniforms);
 
+  // 把代码块高度同步为 demo 的实测高度，超出部分由代码块自身滚动；
+  // 窄屏断点下两列改为上下排布（CSS @media），此时不再同步以免限制过短
+  const NARROW_BREAKPOINT = 1100;
+  const syncHeight = () => {
+    if (window.innerWidth <= NARROW_BREAKPOINT) {
+      pre.style.maxHeight = '';
+    } else {
+      pre.style.maxHeight = `${demo.offsetHeight}px`;
+    }
+  };
+  const ro = new ResizeObserver(syncHeight);
+  ro.observe(demo);
+  window.addEventListener('resize', syncHeight);
+  syncHeight();
+
   // 构建 GUI
   const gui = new GUI({ container: controlsBox, title: '参数', width: 240 });
   for (const ctrl of controls) {

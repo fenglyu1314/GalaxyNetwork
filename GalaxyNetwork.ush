@@ -1,0 +1,186 @@
+// GalaxyNetwork.ush
+// 星座网络效果 - UE Custom Node（完整参数化版）
+//
+// 基于 3×3 邻域（光晕）+ 十字形邻域（连线）+ 11 项优化：
+//   1. d² 替代 length       — 光晕用 dot 代替 sqrt，省 sqrt
+//   2. 连线概率判断         — Hash + 亮度 + 距离综合判断，跳过不画的线
+//   3. 显式 sincos          — sincos() 确保硬件单指令合并 sin+cos
+//   4. 连线 length → dot    — 阈值平方化，省 sqrt
+//   5. sin Hash → 整数 Hash — 纯位运算，省 sin
+//   6. 多频独立闪烁         — 每颗星独立频率/相位，复用已有 Hash，视觉更随机
+//   7. 星点 Hash 过滤       — 约 30% 格子为空，减少孤立星星
+//   8. StarSize/LineWidth 参数化 — 外部控制星星大小和连线粗细
+//   9. 光晕3×3 + 连线十字   — 光晕遍历9格无裁切，连线仅十字5格+右下2方向
+//  10. 亮度关联连线         — 越亮的星越容易产生连线，LineDensity 参数控制连线密度
+//  11. 距离关联连线         — 实际距离越近的星星越容易产生连线
+//
+// 输入（8个）：
+//   UV(Float2), Time(Float1), BaseColor(Float3), Scale(Float1),
+//   Brightness(Float1), StarSize(Float1, 默认1.0), LineWidth(Float1, 默认1.0),
+//   LineDensity(Float1, 默认0.5, 范围0~1, 越大连线越多)
+// 输出：CMOT Float 3 (RGB)
+// ========================================================================
+
+float2 suv = UV * Scale;
+float2 cellId = floor(suv);
+
+// ===== 参数预计算 =====
+float starSq        = StarSize * StarSize;
+float starIntensity  = 0.003 * starSq;
+float starCore       = 0.0001 / max(starSq, 0.01);
+float lwSq           = LineWidth * LineWidth;
+float lineOuter      = 0.0009 * lwSq;
+float lineInner      = 0.000025 * lwSq;
+
+// ===== 宏定义 =====
+
+// 整数 Hash：纯位运算伪随机，替代 sin Hash
+#define INT_HASH(IX, IY, RESULT) \
+{ \
+    uint _h = asuint((IX)) * 0x85ebca6bu ^ asuint((IY)) * 0xc2b2ae35u; \
+    _h = (_h ^ (_h >> 13u)) * 0x9e3779b9u; \
+    _h = _h ^ (_h >> 16u); \
+    RESULT = float(_h & 0xFFFFu) / 65535.0; \
+}
+
+// 星点存在性判断：约 70% 格子有星星
+#define STAR_EXISTS(IX, IY, RESULT) \
+{ \
+    float _se; \
+    INT_HASH((IX) + 7, (IY) + 13, _se) \
+    RESULT = (_se < 0.7); \
+}
+
+// 粒子绝对位置 = 格子中心 + 圆周运动
+#define CALC_ABS_POS(ID, T, RESULT) \
+{ \
+    float _n; \
+    INT_HASH((int)(ID).x, (int)(ID).y, _n) \
+    float _ang = (T) + _n * 6.283; \
+    float _s, _c; \
+    sincos(_ang, _s, _c); \
+    RESULT = (ID) + 0.5 + float2(_s, _c) * 0.45; \
+}
+
+// 同时计算位置和 Hash 值（_n 供连线概率使用）
+#define CALC_ABS_POS_WITH_HASH(ID, T, RESULT, OUT_HASH) \
+{ \
+    INT_HASH((int)(ID).x, (int)(ID).y, OUT_HASH) \
+    float _ang = (T) + OUT_HASH * 6.283; \
+    float _s, _c; \
+    sincos(_ang, _s, _c); \
+    RESULT = (ID) + 0.5 + float2(_s, _c) * 0.45; \
+}
+
+// 线条渲染（全 dot 平方化，参数化粗细）
+#define LINE_ABS(A, B, P, RESULT) \
+{ \
+    float2 _pa = (P) - (A); \
+    float2 _ba = (B) - (A); \
+    float _h = saturate(dot(_pa, _ba) / dot(_ba, _ba)); \
+    float2 _miss = _pa - _ba * _h; \
+    float _d2 = dot(_miss, _miss); \
+    float2 _seg = (A) - (B); \
+    float _len2 = dot(_seg, _seg); \
+    RESULT = smoothstep(lineOuter, lineInner, _d2) * smoothstep(1.44, 0.16, _len2); \
+}
+
+// ===== 主逻辑 =====
+
+float m = 0;        // 连线累计亮度
+float sparkle = 0;  // 光晕累计亮度
+
+// 3×3 邻域遍历（9 格），保证对角方向的光晕不被裁切
+// 连线只从十字方向（非对角）的格子发起，仅→和↓两个方向
+float2 cellOffs[9];
+cellOffs[0] = float2(-1, -1);  // 左上（对角，仅光晕）
+cellOffs[1] = float2( 0, -1);  // 上（光晕 + 连线）
+cellOffs[2] = float2( 1, -1);  // 右上（对角，仅光晕）
+cellOffs[3] = float2(-1,  0);  // 左（光晕 + 连线）
+cellOffs[4] = float2( 0,  0);  // 中心（光晕 + 连线）
+cellOffs[5] = float2( 1,  0);  // 右（光晕 + 连线）
+cellOffs[6] = float2(-1,  1);  // 左下（对角，仅光晕）
+cellOffs[7] = float2( 0,  1);  // 下（光晕 + 连线）
+cellOffs[8] = float2( 1,  1);  // 右下（对角，仅光晕）
+
+[unroll]
+for (int ci = 0; ci < 9; ci++)
+{
+    float2 nid = cellId + cellOffs[ci];
+    bool isDiagonal = (cellOffs[ci].x != 0 && cellOffs[ci].y != 0);
+
+    // ===== 星点过滤 =====
+    bool exists;
+    STAR_EXISTS((int)nid.x, (int)nid.y, exists)
+    if (!exists) continue;
+
+    // 计算位置，同时获取 Hash 值 _n（用于闪烁和连线概率）
+    float2 pCenter;
+    float starHash;
+    CALC_ABS_POS_WITH_HASH(nid, Time, pCenter, starHash)
+
+    // ===== 光晕 =====
+    float2 diff = suv - pCenter;
+    float d2 = dot(diff, diff);
+    float s = starIntensity / (d2 + starCore);
+    s *= smoothstep(1.0, 0.09, d2);
+
+    // 脉冲闪烁：每颗星独立频率/相位
+    float freq = lerp(2.0, 5.0, starHash);
+    float pulse = sin(Time * freq + starHash * 6.283) * 0.5 + 0.5;
+    pulse *= pulse;
+    s *= lerp(0.05, 1.0, pulse);
+
+    sparkle += s;
+
+    // ===== 连线（仅十字方向发起，→和↓两个方向） =====
+    if (!isDiagonal)
+    {
+        [unroll]
+        for (int ni = 0; ni < 2; ni++)
+        {
+            float2 lineDir = (ni == 0) ? float2(1, 0) : float2(0, 1);
+            float2 neighborId = nid + lineDir;
+
+            bool neighborExists;
+            STAR_EXISTS((int)neighborId.x, (int)neighborId.y, neighborExists)
+            if (!neighborExists) continue;
+
+            // 获取邻居的 Hash 值（用于亮度关联连线）
+            float neighborHash;
+            INT_HASH((int)neighborId.x, (int)neighborId.y, neighborHash)
+
+            // 先算邻居位置（需要距离信息来决定连线概率）
+            float2 pNeighbor;
+            CALC_ABS_POS(neighborId, Time, pNeighbor)
+
+            // 距离权重：实际距离越近，连线概率越高
+            // 格子内最近距离约0.1，最远约1.41，映射到 [0, 1]
+            float2 segVec = pNeighbor - pCenter;
+            float segLen2 = dot(segVec, segVec);
+            // smoothstep(0.0, 1.0, 1.0 - sqrt(segLen2))
+            // 用 d² 近似：segLen2=0→近=1.0, segLen2=1→中≈0.5, segLen2=2→远≈0.0
+            float distWeight = smoothstep(2.0, 0.0, segLen2);
+
+            // 连线概率 = LineDensity + 亮度偏移 + 距离权重
+            // starHash / neighborHash 越大 → 星星越"亮" → 越容易产生连线
+            // distWeight 越大 → 星星越近 → 越容易产生连线
+            float hLine;
+            INT_HASH((int)(nid.x * 2 + lineDir.x), (int)(nid.y * 2 + lineDir.y), hLine)
+
+            float lineThreshold = LineDensity + (starHash + neighborHash - 1.0) * 0.3 + distWeight * 0.4;
+            // clamp 防止极端值
+            lineThreshold = clamp(lineThreshold, 0.05, 0.95);
+
+            if (hLine < lineThreshold)
+            {
+                float lineVal;
+                LINE_ABS(pCenter, pNeighbor, suv, lineVal)
+                m += lineVal;
+            }
+        }
+    }
+}
+
+m += sparkle * Brightness;
+return BaseColor * m;

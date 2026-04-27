@@ -76,7 +76,7 @@ export const section07: SectionConfig = {
         uLineBrightness:    { type: 'float', value: 0.8 },
         uGlowStrength:      { type: 'float', value: 1.0 },
         uMinBrightness:     { type: 'float', value: 0.3 },
-        uLineDensity:       { type: 'float', value: 0.4 },
+        uLineDensity:       { type: 'float', value: 0.5 },
         uBrightnessWeight:  { type: 'float', value: 0.3 },
         uDistanceWeight:    { type: 'float', value: 0.4 },
         uTwinkleSpeed:      { type: 'float', value: 1.5 },

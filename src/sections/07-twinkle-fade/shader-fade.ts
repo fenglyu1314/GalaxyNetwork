@@ -113,8 +113,8 @@ void main() {
       vec2 seg = nb - me;
       float segLen2 = dot(seg, seg);
       float bw = (bMe + bNb - 1.0) * uBrightnessWeight;
-      float dw = smoothstep(1.6, 0.4, segLen2) * uDistanceWeight;
-      float threshold = clamp(uLineDensity + bw + dw, 0.05, 0.95);
+      float dw = (smoothstep(1.6, 0.4, segLen2) * 2.0 - 1.0) * uDistanceWeight;
+      float threshold = clamp(uLineDensity + bw + dw, 0.0, 1.0);
       if (edgeHash(cellId, nbCell) > threshold) continue;
 
       // 距离过渡：远 → 既细又透

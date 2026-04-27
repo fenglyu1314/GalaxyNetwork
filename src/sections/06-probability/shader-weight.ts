@@ -1,12 +1,17 @@
 // 6.3 综合权重：阈值不再是固定的 LineDensity，而是叠加亮度 + 距离两项
 //
-// 阈值 = clamp(LineDensity + 亮度偏移 + 距离权重, 0.05, 0.95)
-//   - 亮度偏移 = (bA + bB - 1) · BrightnessWeight    取值 [-1, +1] · w
-//     bA / bB ∈ [0,1] 是两端星的"亮度"，独立第 3 组 hash 取出（与存在性正交）
-//     两颗都暗 → 偏移负 → 阈值低 → 不容易连
-//     两颗都亮 → 偏移正 → 阈值高 → 容易连
-//   - 距离权重 = smoothstep(2, 0, segLen²) · DistanceWeight
-//     segLen² 越小（端点越近）→ 权重越大 → 越容易连
+// 阈值 = clamp(LineDensity + bw + dw, 0.0, 1.0)
+//   - bw = (bA + bB - 1) · BrightnessWeight                ∈ [-W_b, +W_b]
+//     bA / bB ∈ [0,1] 是两端星的"亮度"（独立第 3 组 hash，与存在性正交）
+//     两颗都暗 → bw 负 → 阈值低 → 不容易连
+//     两颗都亮 → bw 正 → 阈值高 → 容易连
+//   - dw = (2·smoothstep(1.6, 0.4, segLen²) - 1) · DistanceWeight  ∈ [-W_d, +W_d]
+//     端点越近 → smoothstep 越大 → dw 越正 → 越容易连
+//     端点越远 → dw 越负 → 越不容易连
+//
+// 两个权重都设计成"双向"，单独把任一权重拉到 1 都能直接看到极端对比 ——
+// 这是本节的核心目的：让你可以分别观察"亮度"和"距离"对连线的影响。
+// clamp 范围放宽到 [0, 1]（不再 [0.05, 0.95]），保证强权重时阈值能真的打满 / 归零。
 //
 // 同时把"亮度"也乘进星点 disk + halo，让画面里能看出亮星和暗星 ——
 // 视觉上"亮的星 + 它的近邻"自然形成连线主干，整张图开始有层次。
@@ -110,11 +115,15 @@ void main() {
       vec2 seg = nb - me;
       float segLen2 = dot(seg, seg);
 
+      // 两个权重都设计成"双向"（既能加分也能减分），保证单独把任一权重拉到 1
+      // 时画面都能呈现极端对比：亮的全连/暗的全断、近的全连/远的全断。
+      //   bw = (bA + bB − 1) · W_b      ∈ [-W_b, +W_b]   两端都暗 → 减分
+      //   dw = (2·smoothstep − 1) · W_d ∈ [-W_d, +W_d]   远 → 减分、近 → 加分
+      // smoothstep 范围按当前默认 Jitter/OrbitRadius 下 segLen² 的实际分布裁剪
+      // ([0.7, 1.4] 居多)，比 [2, 0] 这种宽范围更能拉开"近 vs 远"的对比
       float bw = (bMe + bNb - 1.0) * uBrightnessWeight;
-      // smoothstep 范围按当前默认 Jitter/OrbitRadius 下 segLen² 的实际分布裁剪，
-      // 否则在 [2, 0] 这样的宽范围里，segLen² ≈ 1 附近的变化几乎看不到差异
-      float dw = smoothstep(1.6, 0.4, segLen2) * uDistanceWeight;
-      float threshold = clamp(uLineDensity + bw + dw, 0.05, 0.95);
+      float dw = (smoothstep(1.6, 0.4, segLen2) * 2.0 - 1.0) * uDistanceWeight;
+      float threshold = clamp(uLineDensity + bw + dw, 0.0, 1.0);
 
       if (edgeHash(cellId, nbCell) > threshold) continue;
       lines += smoothstep(w2, 0.0, distToSeg2(grid, me, nb));

@@ -153,37 +153,44 @@ bool starExists(vec2 nbId) {
           肉眼能看出的连接都集中在<strong>亮的、近的</strong>邻居之间。
           做法是把固定阈值 <code>uLineDensity</code> 换成一个<strong>动态阈值</strong>：
         </p>
-        <pre><code>threshold = clamp(
-  uLineDensity
-  + (bA + bB - 1.0) · uBrightnessWeight       // 亮度偏移：[-1, +1] · w
-  + smoothstep(1.6, 0.4, segLen²) · uDistanceWeight,  // 距离权重：近 → 大
-  0.05, 0.95
-);</code></pre>
+        <pre><code>// 两个权重都设计成"双向"：单独把任一权重拉到 1，画面立刻呈现极端对比
+float bw = (bA + bB - 1.0) · uBrightnessWeight;                       // ∈ [-W_b, +W_b]
+float dw = (smoothstep(1.6, 0.4, segLen²) · 2.0 - 1.0) · uDistanceWeight; // ∈ [-W_d, +W_d]
+float threshold = clamp(uLineDensity + bw + dw, 0.0, 1.0);</code></pre>
         <p>
-          <strong>距离权重的 smoothstep 范围</strong>需要按实际端点抖动幅度调整：
+          <strong>双向是关键</strong>。如果距离权重写成 <code>smoothstep(...) · w</code>
+          （单向 [0, +w]），那么远的边永远不会被主动断掉，只有近的边被加分 ——
+          配合 base <code>LineDensity</code> 接近上限时，权重几乎被 clamp 吃掉，看不出影响。
+          换成 <code>(2·smoothstep − 1) · w</code> 就把"近 ↔ 远"映射到 <code>[+1, −1]</code>，
+          近的边主动加分、远的边主动减分，<strong>调一个旋钮就能看到画面在两个方向上重组</strong>。
+        </p>
+        <p>
+          <strong>distance 的 smoothstep 范围 [1.6, 0.4]</strong>不是随手拍的：
           相邻两星的 <code>segLen²</code> 在默认 <code>Jitter = 0.4 / OrbitRadius = 0.06</code>
-          下集中在 <strong>[0.7, 1.4]</strong>，所以 <code>smoothstep(1.6, 0.4)</code> 刚好
-          覆盖这个分布——把"很近 vs 很远"映射到 [1, 0] 全程。
-          如果像原 <code>.ush</code> 那样写成 <code>smoothstep(2, 0)</code>，
-          实际差异会被压缩到只剩 ±0.18 左右，肉眼几乎看不出。
+          下集中在 <strong>[0.7, 1.4]</strong>，所以这个范围刚好把"很近 vs 很远"映射到全程；
+          写成 <code>[2, 0]</code> 实际差异会被压缩到只剩 ±0.2 左右，肉眼几乎看不出。
         </p>
         <p>
-          这里的亮度 <code>bA / bB</code> 就是 6.1 引入的 <code>starBrightness()</code>
-          ——同一组 hash 既决定"剔除与否"也决定"易连与否"，自然对齐。
-          两端都暗 → <code>(bA + bB - 1)</code> 接近 −1，阈值被压低，连线被砍掉；
-          两端都亮 → 阈值升高，连线必然出现。距离权重同理：
-          越近的邻居 <code>segLen²</code> 越小，权重越大。
+          亮度 <code>bA / bB</code> 直接复用 6.1 的 <code>starBrightness()</code> ——
+          同一组 hash 既决定"剔除与否"也决定"易连与否"，自然对齐。
+          两端都暗 → <code>bw</code> 负 → 阈值被压低、连线消失；
+          两端都亮 → <code>bw</code> 正 → 阈值升高、连线必然出现。
         </p>
         <p>
-          星点 disk + halo 的亮度加权在 6.1 已经做过了；
-          这一节只是让"亮"这件事进一步影响"是否被连接" ——
-          连线主干自然向亮星集中，画面有了真正的层次。
+          推荐这样验证两个权重的独立效果（默认 <code>LineDensity = 0.5</code> 已经留好了上下浮动空间）：
+        </p>
+        <ul>
+          <li><strong>BrightnessWeight = 1，DistanceWeight = 0</strong> →
+            画面分裂成"亮星簇"与"暗星孤岛"，亮星之间几乎全连、暗星之间几乎全断。</li>
+          <li><strong>BrightnessWeight = 0，DistanceWeight = 1</strong> →
+            连线骨架按"近邻几何"重组，长边消失、短边浮现，呈现真正的"邻接图"质感。</li>
+          <li><strong>两个都拉到 0.5</strong> → 主干清晰，亮星 + 近邻同时被强调，最接近星座感。</li>
+          <li><strong>两个都 0</strong> → 等效 6.2 的均匀概率，连线由 <code>LineDensity</code> 单独决定。</li>
+        </ul>
+        <p>
+          星点 disk + halo 的亮度加权在 6.1 已经做过；
+          这一节只是让"亮"这件事进一步影响"是否被连接"。
           第 7 节再给 <code>b</code> 叠一层时间脉冲，就是"闪烁"。
-        </p>
-        <p>
-          <strong>BrightnessWeight = 0、DistanceWeight = 0</strong> → 等效 6.2 的均匀概率；
-          <strong>把权重慢慢拉起来</strong> → 连线开始向亮星和近邻聚拢；
-          <strong>都拉到 0.5</strong> → 主干清晰、稀疏区只剩亮星孤悬，最像真实星座。
         </p>
       `,
       shaderSource: SHADER_WEIGHT,
@@ -197,7 +204,7 @@ bool starExists(vec2 nbId) {
         uLineBrightness:    { type: 'float', value: 0.8 },
         uGlowStrength:      { type: 'float', value: 1.0 },
         uMinBrightness:     { type: 'float', value: 0.3 },
-        uLineDensity:       { type: 'float', value: 0.4 },
+        uLineDensity:       { type: 'float', value: 0.5 },
         uBrightnessWeight:  { type: 'float', value: 0.3 },
         uDistanceWeight:    { type: 'float', value: 0.4 },
         uShowGrid:          { type: 'float', value: 0.0 },

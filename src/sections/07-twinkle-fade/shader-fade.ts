@@ -75,7 +75,6 @@ void main() {
   vec2 cellId = floor(grid);
 
   // 星点：与 6.3 完全一致（本节专注连线变化）
-  float r2 = uStarSize * uStarSize;
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -83,7 +82,10 @@ void main() {
       vec2 nbId = cellId + vec2(float(ox), float(oy));
       if (!starExists(nbId)) continue;
       vec2 starPos = starOf(nbId);
-      float b = mix(0.4, 1.4, starBrightness(nbId));
+      float bRaw = starBrightness(nbId);
+      float b = mix(0.4, 1.4, bRaw);
+      float r = uStarSize * mix(0.45, 1.0, bRaw);
+      float r2 = r * r;
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
       disk += smoothstep(r2, r2 * 0.85, d2) * b;

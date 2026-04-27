@@ -68,7 +68,6 @@ void main() {
   vec2 grid = vUv * uScale;
   vec2 cellId = floor(grid);
 
-  float r2 = uStarSize * uStarSize;
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -80,6 +79,8 @@ void main() {
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
       float w = mix(0.4, 1.4, b);
+      float r = uStarSize * mix(0.45, 1.0, b);
+      float r2 = r * r;
       disk += smoothstep(r2, r2 * 0.85, d2) * w;
       float h = r2 / (d2 + 0.0001);
       h *= smoothstep(0.25, 0.0, d2);

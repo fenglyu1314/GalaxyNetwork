@@ -10,6 +10,8 @@
 // 不会让星瞬间消失再出现（那种抖动太丑）。
 // 而连线阈值的 bMe / bNb 用 b_dyn —— 闪到亮峰时连线短暂浮现，
 // 闪到谷底时连线悄悄淡出，整张图开始"呼吸"。
+// 半径 r 也跟 b_dyn 走（沿用 6.1 的 mix(0.45, 1.0, b)）：
+// 谷底时星点同时变暗 + 缩小，亮度·体积双重收缩，呼吸感更强。
 //
 // 频率 hash 复用 starBrightness 的同一组 hash（取 .y 分量），
 // 不再调一次 pcg2d，与 .ush 中"复用已有 hash"的思路一致。
@@ -82,8 +84,7 @@ void main() {
   vec2 grid = vUv * uScale;
   vec2 cellId = floor(grid);
 
-  // 星点：disk + halo 都按时变亮度加权 —— 直接看到"星在闪"
-  float r2 = uStarSize * uStarSize;
+  // 星点：亮度 + 半径都跟时变亮度走 —— 暗时段不仅淡，且体积更小（双重呼吸）
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -91,7 +92,10 @@ void main() {
       vec2 nbId = cellId + vec2(float(ox), float(oy));
       if (!starExists(nbId)) continue;
       vec2 starPos = starOf(nbId);
-      float b = mix(0.4, 1.4, starTwinkle(nbId));
+      float bDyn = starTwinkle(nbId);
+      float b = mix(0.4, 1.4, bDyn);
+      float r = uStarSize * mix(0.45, 1.0, bDyn);
+      float r2 = r * r;
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
       disk += smoothstep(r2, r2 * 0.85, d2) * b;

@@ -3,7 +3,8 @@
 // 把"星点存在 / 不存在"和"星点亮度"合并成同一件事：
 //   b = starBrightness(nbId)  ∈ [0, 1]   独立第 3 组 hash（偏移 (51, 89)）
 //   b < uMinBrightness  → 剔除（视为不存在）
-//   否则 disk + halo 按 b 加权 → 亮星更亮、暗星更暗
+//   否则 disk + halo 按 b 加权 → 亮星更亮、暗星更暗；
+//   同时 r = uStarSize · mix(0.45, 1.0, b) → 暗星半径也更小（相对 .ush 的视觉增强）
 //
 // uMinBrightness = 0.0 → 全部保留（等效第 5 节）
 // uMinBrightness = 0.3 → 约 70% 保留（默认）
@@ -62,8 +63,7 @@ void main() {
   vec2 grid = vUv * uScale;
   vec2 cellId = floor(grid);
 
-  // 星点：3×3 邻域，跳过太暗的星；保留的星按亮度加权
-  float r2 = uStarSize * uStarSize;
+  // 星点：3×3 邻域，跳过太暗的星；保留的星按亮度加权 + 半径同步缩放
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -74,7 +74,9 @@ void main() {
       vec2 starPos = starOf(nbId);
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
-      float w = mix(0.4, 1.4, b);   // 亮度映射到视觉强度
+      float w = mix(0.4, 1.4, b);                    // 亮度 → 视觉强度
+      float r = uStarSize * mix(0.45, 1.0, b);       // 亮度 → 半径（暗星 ≈ 45%）
+      float r2 = r * r;
       disk += smoothstep(r2, r2 * 0.85, d2) * w;
       float h = r2 / (d2 + 0.0001);
       h *= smoothstep(0.25, 0.0, d2);

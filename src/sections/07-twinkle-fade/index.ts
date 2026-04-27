@@ -59,6 +59,11 @@ export const section07: SectionConfig = {
           闪到亮峰时 <code>(bA + bB - 1)</code> 变正、阈值升高，连线短暂浮现；
           谷底时连线悄悄淡出。整张图开始呈现"亮星先连，再扩散"的呼吸节奏。
         </p>
+        <p>
+          沿用 6.1 的"亮度同时缩半径"约定，星点的 <code>r</code> 也以 <code>bDyn</code> 驱动 ——
+          谷底时星点<strong>同时变暗 + 缩小</strong>，亮度·体积双重收缩，
+          闪烁感比"只调亮度"明显得多。
+        </p>
       `,
       shaderSource: SHADER_TWINKLE,
       uniforms: {

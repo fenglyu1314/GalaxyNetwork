@@ -67,8 +67,7 @@ void main() {
   vec2 grid = vUv * uScale;
   vec2 cellId = floor(grid);
 
-  // 星点：累加时按亮度加权，让画面有强弱
-  float r2 = uStarSize * uStarSize;
+  // 星点：累加时按亮度加权，半径也按亮度同步缩放
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -76,7 +75,10 @@ void main() {
       vec2 nbId = cellId + vec2(float(ox), float(oy));
       if (!starExists(nbId)) continue;
       vec2 starPos = starOf(nbId);
-      float b = mix(0.4, 1.4, starBrightness(nbId));
+      float bRaw = starBrightness(nbId);
+      float b = mix(0.4, 1.4, bRaw);
+      float r = uStarSize * mix(0.45, 1.0, bRaw);
+      float r2 = r * r;
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
       disk += smoothstep(r2, r2 * 0.85, d2) * b;

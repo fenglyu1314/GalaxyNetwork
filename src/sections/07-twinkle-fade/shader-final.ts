@@ -80,8 +80,7 @@ void main() {
   vec2 grid = vUv * uScale;
   vec2 cellId = floor(grid);
 
-  // 星点：3×3 邻域，时变亮度加权
-  float r2 = uStarSize * uStarSize;
+  // 星点：3×3 邻域，亮度 + 半径都跟时变亮度走
   float disk = 0.0;
   float halo = 0.0;
   for (int oy = -1; oy <= 1; oy++) {
@@ -89,7 +88,10 @@ void main() {
       vec2 nbId = cellId + vec2(float(ox), float(oy));
       if (!starExists(nbId)) continue;
       vec2 starPos = starOf(nbId);
-      float b = mix(0.4, 1.4, starTwinkle(nbId));
+      float bDyn = starTwinkle(nbId);
+      float b = mix(0.4, 1.4, bDyn);
+      float r = uStarSize * mix(0.45, 1.0, bDyn);
+      float r2 = r * r;
       vec2 diff = grid - starPos;
       float d2 = dot(diff, diff);
       disk += smoothstep(r2, r2 * 0.85, d2) * b;

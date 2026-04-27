@@ -3,12 +3,14 @@ import { mountSection, type SectionConfig } from './core/section';
 import { section01 } from './sections/01-uv-point';
 import { section02 } from './sections/02-grid';
 import { section03 } from './sections/03-line';
+import { section04 } from './sections/04-motion';
 
 // 所有章节注册到这里，按顺序渲染
 const SECTIONS: SectionConfig[] = [
   section01,
   section02,
   section03,
+  section04,
 ];
 
 function buildToc(parent: HTMLElement): void {
